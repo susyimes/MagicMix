@@ -1,0 +1,3 @@
+include ':lite'
+include ':app'
+rootProject.name = "MagicMix"
