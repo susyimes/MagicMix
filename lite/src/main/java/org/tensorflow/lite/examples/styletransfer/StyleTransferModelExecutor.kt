@@ -26,6 +26,8 @@ import java.nio.MappedByteBuffer
 import java.nio.channels.FileChannel
 import kotlin.collections.set
 import org.tensorflow.lite.Interpreter
+
+
 import org.tensorflow.lite.gpu.GpuDelegate
 
 @SuppressWarnings("GoodTime")
@@ -45,25 +47,48 @@ class StyleTransferModelExecutor(
   private var styleTransferTime = 0L
   private var postProcessTime = 0L
 
-  init {
-    if (useGPU) {
-      interpreterPredict = getInterpreter(context, STYLE_PREDICT_FLOAT16_MODEL, true)
-      interpreterTransform = getInterpreter(context, STYLE_TRANSFER_FLOAT16_MODEL, true)
-    } else {
-      interpreterPredict = getInterpreter(context, STYLE_PREDICT_INT8_MODEL, false)
-      interpreterTransform = getInterpreter(context, STYLE_TRANSFER_INT8_MODEL, false)
-    }
-  }
+
+
+
 
   companion object {
     private const val TAG = "StyleTransferMExec"
     private const val STYLE_IMAGE_SIZE = 256
     private const val CONTENT_IMAGE_SIZE = 384
     private const val BOTTLENECK_SIZE = 100
-    private const val STYLE_PREDICT_INT8_MODEL = "style_predict_quantized_256.tflite"
-    private const val STYLE_TRANSFER_INT8_MODEL = "style_transfer_quantized_384.tflite"
+    private const val STYLE_PREDICT_INT_MODEL = "style_predict_hybrid_last.tflite"
+    private const val STYLE_TRANSFER_INT_MODEL = "style_transfer_hybrid_last.tflite"
+//    private const val STYLE_PREDICT_FLOAT16_MODEL = "style_predict_f16_shayak.tflite"
+//    private const val STYLE_TRANSFER_FLOAT16_MODEL = "style_transfer_f16_shayak.tflite"
+    //not fit in xiaomi 8
+//    private const val STYLE_PREDICT_INT_MODEL = "style_predict_quantized_256.tflite"
+//    private const val STYLE_TRANSFER_INT_MODEL = "style_transfer_quantized_384.tflite"
     private const val STYLE_PREDICT_FLOAT16_MODEL = "style_predict_f16_256.tflite"
     private const val STYLE_TRANSFER_FLOAT16_MODEL = "style_transfer_f16_384.tflite"
+  }
+  private lateinit var inputsStyleForPredict: Array<Any>
+  private lateinit var inputsContentForPredict: Array<Any>
+  private lateinit var outputsForPredictStyle: HashMap<Int, Any>
+  private lateinit var outputsForPredictContent: HashMap<Int, Any>
+
+  private var contentBottleneck =
+    Array(1) { Array(1) { Array(1) { FloatArray(BOTTLENECK_SIZE) } } }
+  private var styleBottleneck =
+    Array(1) { Array(1) { Array(1) { FloatArray(BOTTLENECK_SIZE) } } }
+  private var styleBottleneckBlended =
+    Array(1) { Array(1) { Array(1) { FloatArray(BOTTLENECK_SIZE) } } }
+
+  var contentBlendingRatio = 0.1f
+  init {
+    if (useGPU) {
+      interpreterPredict = getInterpreter(context, STYLE_PREDICT_FLOAT16_MODEL, true)
+      interpreterTransform = getInterpreter(context, STYLE_TRANSFER_FLOAT16_MODEL, true)
+    } else {
+      interpreterPredict = getInterpreter(context, STYLE_PREDICT_INT_MODEL, false)
+      interpreterTransform = getInterpreter(context, STYLE_TRANSFER_INT_MODEL, false)
+    }
+
+
   }
 
   fun execute(
@@ -74,30 +99,103 @@ class StyleTransferModelExecutor(
     try {
       Log.i(TAG, "running models")
 
+      val contentBitmap = ImageUtils.decodeBitmap(File(contentImagePath))
+
+
+      stylePredictTime = SystemClock.uptimeMillis()
+      val styleBitmap =
+        ImageUtils.loadBitmapFromResources(context, "thumbnails/$styleImageName")
+      val inputStyle =
+        ImageUtils.bitmapToByteBuffer(styleBitmap, STYLE_IMAGE_SIZE, STYLE_IMAGE_SIZE)
+
+      inputsStyleForPredict = arrayOf(inputStyle)
+      outputsForPredictStyle = HashMap()
+
+      // Stylebottleneckblended is calculated once and used inside style transfer
+      outputsForPredictStyle[0] = styleBottleneckBlended
+      preProcessTime = SystemClock.uptimeMillis() - preProcessTime
+
+      interpreterPredict.runForMultipleInputsOutputs(
+        inputsStyleForPredict,
+        outputsForPredictStyle
+      )
+
+      stylePredictTime = SystemClock.uptimeMillis() - stylePredictTime
+
+      stylePredictTime = SystemClock.uptimeMillis()
+
+
+      val inputContent =
+        ImageUtils.bitmapToByteBuffer(contentBitmap,
+          StyleTransferModelExecutor.STYLE_IMAGE_SIZE,
+          StyleTransferModelExecutor.STYLE_IMAGE_SIZE
+        )
+
+      inputsStyleForPredict = arrayOf(inputStyle)
+      inputsContentForPredict = arrayOf(inputContent)
+      outputsForPredictStyle = HashMap()
+      outputsForPredictContent = HashMap()
+      outputsForPredictStyle[0] = styleBottleneck
+      outputsForPredictContent[0] = contentBottleneck
+      preProcessTime = SystemClock.uptimeMillis() - preProcessTime
+      // Run for style
+      interpreterPredict.runForMultipleInputsOutputs(
+        inputsStyleForPredict,
+        outputsForPredictStyle
+      )
+      // Run for blending
+      interpreterPredict.runForMultipleInputsOutputs(
+        inputsContentForPredict,
+        outputsForPredictContent
+      )
+
+
+      // Calculation of style blending
+      // # Define content blending ratio between [0..1].
+      //# 0.0: 0% style extracts from content image.
+      //# 1.0: 100% style extracted from content image.
+      //content_blending_ratio = 0.5
+      //
+      //# Blend the style bottleneck of style image and content image
+      //style_bottleneck_blended = content_blending_ratio * style_bottleneck_content \
+      //
+      //                           + (1 - content_blending_ratio) * style_bottleneck
+
+      // Apply style inheritance by changing values with seekbar integers
+      for (i in 0 until contentBottleneck[0][0][0].size) {
+        contentBottleneck[0][0][0][i] =
+          contentBottleneck[0][0][0][i] * contentBlendingRatio
+      }
+
+      for (i in styleBottleneck[0][0][0].indices) {
+        styleBottleneck[0][0][0][i] =
+          styleBottleneck[0][0][0][i] * (1 - contentBlendingRatio)
+      }
+
+      for (i in styleBottleneckBlended[0][0][0].indices) {
+        styleBottleneckBlended[0][0][0][i] =
+          contentBottleneck[0][0][0][i] + styleBottleneck[0][0][0][i]
+      }
+
+      stylePredictTime = SystemClock.uptimeMillis() - stylePredictTime
+      Log.i("PREDICT", "Style Predict Time to run: $stylePredictTime")
+
       fullExecutionTime = SystemClock.uptimeMillis()
       preProcessTime = SystemClock.uptimeMillis()
 
-      val contentImage = ImageUtils.decodeBitmap(File(contentImagePath))
+      //val contentImage = ImageUtils.decodeBitmap(File(contentImagePath))
       val contentArray =
-        ImageUtils.bitmapToByteBuffer(contentImage, CONTENT_IMAGE_SIZE, CONTENT_IMAGE_SIZE)
-      val styleBitmap =
-        ImageUtils.loadBitmapFromResources(context, "thumbnails/$styleImageName")
-      val input = ImageUtils.bitmapToByteBuffer(styleBitmap, STYLE_IMAGE_SIZE, STYLE_IMAGE_SIZE)
+        ImageUtils.bitmapToByteBuffer(
+          contentBitmap,
+          CONTENT_IMAGE_SIZE,
+          CONTENT_IMAGE_SIZE
+        )
+      val inputsForStyleTransfer = if (useGPU) {
+        arrayOf(contentArray, styleBottleneckBlended)
+      } else {
+        arrayOf(styleBottleneckBlended, contentArray)
+      }
 
-      val inputsForPredict = arrayOf<Any>(input)
-      val outputsForPredict = HashMap<Int, Any>()
-      val styleBottleneck = Array(1) { Array(1) { Array(1) { FloatArray(BOTTLENECK_SIZE) } } }
-      outputsForPredict[0] = styleBottleneck
-      preProcessTime = SystemClock.uptimeMillis() - preProcessTime
-
-      stylePredictTime = SystemClock.uptimeMillis()
-      // The results of this inference could be reused given the style does not change
-      // That would be a good practice in case this was applied to a video stream.
-      interpreterPredict.runForMultipleInputsOutputs(inputsForPredict, outputsForPredict)
-      stylePredictTime = SystemClock.uptimeMillis() - stylePredictTime
-      Log.d(TAG, "Style Predict Time to run: $stylePredictTime")
-
-      val inputsForStyleTransfer = arrayOf(contentArray, styleBottleneck)
       val outputsForStyleTransfer = HashMap<Int, Any>()
       val outputImage =
         Array(1) { Array(CONTENT_IMAGE_SIZE) { Array(CONTENT_IMAGE_SIZE) { FloatArray(3) } } }
@@ -109,15 +207,17 @@ class StyleTransferModelExecutor(
         outputsForStyleTransfer
       )
       styleTransferTime = SystemClock.uptimeMillis() - styleTransferTime
-      Log.d(TAG, "Style apply Time to run: $styleTransferTime")
+      Log.i("StyleTransferModelExecutor.TAG", "Style apply Time to run: $styleTransferTime")
 
       postProcessTime = SystemClock.uptimeMillis()
-      var styledImage =
+      val styledImage =
         ImageUtils.convertArrayToBitmap(outputImage, CONTENT_IMAGE_SIZE, CONTENT_IMAGE_SIZE)
       postProcessTime = SystemClock.uptimeMillis() - postProcessTime
+      Log.i("StyleTransferModelExecutor.TAG", "Post process time: $postProcessTime")
 
       fullExecutionTime = SystemClock.uptimeMillis() - fullExecutionTime
-      Log.d(TAG, "Time to run everything: $fullExecutionTime")
+      Log.i("STYLE_SOLOUPIS", "Time to run everything: $fullExecutionTime")
+
 
       return ModelExecutionResult(
         styledImage,
