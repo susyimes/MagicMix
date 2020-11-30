@@ -17,41 +17,42 @@
 package org.tensorflow.lite.examples.styletransfer
 
 import android.Manifest
-import androidx.lifecycle.Observer
-import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.hardware.camera2.CameraCharacteristics
+import android.net.Uri
 import android.os.Bundle
 import android.os.Process
-import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
 import android.util.Log
 import android.view.View
 import android.view.animation.AnimationUtils
 import android.view.animation.BounceInterpolator
-import android.widget.Button
-import android.widget.FrameLayout
-import android.widget.HorizontalScrollView
-import android.widget.ImageButton
-import android.widget.ImageView
-import android.widget.ProgressBar
-import android.widget.Switch
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
 import androidx.core.app.ActivityCompat
+import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.DataSource
+import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.load.engine.bitmap_recycle.BitmapPool
 import com.bumptech.glide.load.resource.bitmap.BitmapTransformation
-import com.bumptech.glide.request.RequestOptions
-import java.io.File
-import java.nio.charset.Charset
-import java.security.MessageDigest
-import java.util.concurrent.Executors
+import com.bumptech.glide.request.RequestListener
+import com.bumptech.glide.request.target.Target
+import com.luck.picture.lib.PictureSelector
+import com.luck.picture.lib.config.PictureMimeType
+import com.luck.picture.lib.entity.LocalMedia
+import com.luck.picture.lib.listener.OnResultCallbackListener
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.async
 import org.tensorflow.lite.examples.styletransfer.camera.CameraFragment
+import java.io.File
+import java.io.IOException
+import java.nio.charset.Charset
+import java.security.MessageDigest
+import java.util.concurrent.Executors
 
 // This is an arbitrary number we are using to keep tab of the permission
 // request. Where an app has multiple context for requesting permission,
@@ -158,6 +159,22 @@ class MainActivity :
     styleImageView.setOnClickListener {
       if (!isRunningModel) {
         stylesFragment.show(supportFragmentManager, "StylesFragment")
+
+//        PictureSelector.create(this)
+//          .openGallery(PictureMimeType.ofImage())
+//          .loadImageEngine(GlideEngine.createGlideEngine()) // Please refer to the Demo GlideEngine.java
+//          .forResult(object: OnResultCallbackListener<LocalMedia> {
+//            override fun onResult(result: MutableList<LocalMedia>?) {
+//              Log.d(TAG, Uri.parse(result?.get(0)?.path.toString()).toString())
+//              selectedStyle = result?.get(0)?.path.toString()
+//              setImageView(styleImageView, selectedStyle)
+//              startRunningModel()
+//            }
+//            override fun onCancel() {
+//            }
+//          })
+
+
       }
     }
 
@@ -183,7 +200,6 @@ class MainActivity :
     Glide.with(baseContext)
       .load(image)
       .override(512, 512)
-      .fitCenter()
       .into(imageView)
   }
 
@@ -192,7 +208,6 @@ class MainActivity :
       .asBitmap()
       .load(imagePath)
       .override(512, 512)
-      .apply(RequestOptions().transform(CropTop()))
       .into(imageView)
   }
 
@@ -215,7 +230,20 @@ class MainActivity :
   private fun setupControls() {
     captureButton.setOnClickListener {
       it.clearAnimation()
-      cameraFragment.takePicture()
+      //cameraFragment.takePicture()
+
+      PictureSelector.create(this)
+        .openGallery(PictureMimeType.ofImage())
+        .loadImageEngine(GlideEngine.createGlideEngine()) // Please refer to the Demo GlideEngine.java
+        .forResult(object: OnResultCallbackListener<LocalMedia> {
+          override fun onResult(result: MutableList<LocalMedia>?) {
+            Log.d(TAG, Uri.parse(result?.get(0)?.path.toString()).toString())
+            lastSavedFile = result?.get(0)?.path.toString()
+            setImageView(originalImageView, lastSavedFile)
+          }
+          override fun onCancel() {
+          }
+        })
     }
 
     findViewById<ImageButton>(R.id.toggle_button).setOnClickListener {
@@ -300,8 +328,9 @@ class MainActivity :
     Log.d(TAG, item)
     selectedStyle = item
     stylesFragment.dismiss()
-
+    setImageView(styleImageView, getUriFromAssetThumb(selectedStyle))
     startRunningModel()
+
   }
 
   private fun getUriFromAssetThumb(thumb: String): String {
@@ -313,9 +342,10 @@ class MainActivity :
       val chooseStyleLabel: TextView = findViewById(R.id.choose_style_text_view)
       chooseStyleLabel.visibility = View.GONE
       enableControls(false)
-      setImageView(styleImageView, getUriFromAssetThumb(selectedStyle))
+      //setImageView(styleImageView, getUriFromAssetThumb(selectedStyle))
       resultImageView.visibility = View.INVISIBLE
       progressBar.visibility = View.VISIBLE
+      Log.e("styleeee",lastSavedFile+"???"+selectedStyle)
       viewModel.onApplyStyle(
         baseContext, lastSavedFile, selectedStyle, styleTransferModelExecutor,
         inferenceThread

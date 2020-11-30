@@ -34,72 +34,76 @@
             android:id="@+id/view_finder"
             android:layout_width="300dp"
             android:layout_height="300dp"
-            android:paddingTop="16dp" />
+            android:paddingTop="16dp"
+            android:visibility="gone"
+            />
       </LinearLayout>
 
-        <HorizontalScrollView
-            android:id="@+id/horizontal_scroll_view"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
+
+    </LinearLayout>
+    <HorizontalScrollView
+        android:id="@+id/horizontal_scroll_view"
+        android:layout_width="match_parent"
+        android:layout_gravity="center"
+
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/original_imageview"
+                android:layout_width="@dimen/previewSize"
+                android:layout_height="@dimen/previewSize"
+                android:padding="4dp"
+                android:src="@android:drawable/ic_menu_camera" />
+
+            <FrameLayout
+                android:layout_width="@dimen/previewSize"
+                android:layout_height="@dimen/previewSize">
 
                 <ImageView
-                    android:id="@+id/original_imageview"
+                    android:id="@+id/style_imageview"
                     android:layout_width="@dimen/previewSize"
                     android:layout_height="@dimen/previewSize"
                     android:padding="4dp"
-                    android:src="@android:drawable/ic_menu_camera" />
+                    android:src="@drawable/styles_square_thumb" />
 
-                <FrameLayout
+                <TextView
+                    android:id="@+id/choose_style_text_view"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@color/semi_transparent"
+                    android:gravity="center"
+                    android:text="@string/choose_a_style"
+                    android:textAppearance="@style/TextAppearance.AppCompat.Medium"
+                    android:textColor="@android:color/white"
+                    android:textSize="24sp"
+                    android:textStyle="bold" />
+            </FrameLayout>
+
+            <FrameLayout
+                android:layout_width="@dimen/previewSize"
+                android:layout_height="@dimen/previewSize">
+
+                <ProgressBar
+                    android:id="@+id/progress_circular"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center" />
+
+                <ImageView
+                    android:id="@+id/result_imageview"
                     android:layout_width="@dimen/previewSize"
-                    android:layout_height="@dimen/previewSize">
+                    android:layout_height="@dimen/previewSize"
+                    android:padding="4dp" />
+            </FrameLayout>
 
-                    <ImageView
-                        android:id="@+id/style_imageview"
-                        android:layout_width="@dimen/previewSize"
-                        android:layout_height="@dimen/previewSize"
-                        android:padding="4dp"
-                        android:src="@drawable/styles_square_thumb" />
-
-                    <TextView
-                        android:id="@+id/choose_style_text_view"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:background="@color/semi_transparent"
-                        android:gravity="center"
-                        android:text="@string/choose_a_style"
-                        android:textAppearance="@style/TextAppearance.AppCompat.Medium"
-                        android:textColor="@android:color/white"
-                        android:textSize="24sp"
-                        android:textStyle="bold" />
-                </FrameLayout>
-
-                <FrameLayout
-                    android:layout_width="@dimen/previewSize"
-                    android:layout_height="@dimen/previewSize">
-
-                    <ProgressBar
-                        android:id="@+id/progress_circular"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center" />
-
-                    <ImageView
-                        android:id="@+id/result_imageview"
-                        android:layout_width="@dimen/previewSize"
-                        android:layout_height="@dimen/previewSize"
-                        android:padding="4dp" />
-                </FrameLayout>
-
-            </LinearLayout>
-        </HorizontalScrollView>
-
-    </LinearLayout>
-
+        </LinearLayout>
+    </HorizontalScrollView>
     <include layout="@layout/bottom_sheet_layout" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton

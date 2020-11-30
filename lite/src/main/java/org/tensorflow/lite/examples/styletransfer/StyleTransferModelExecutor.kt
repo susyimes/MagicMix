@@ -17,8 +17,13 @@
 package org.tensorflow.lite.examples.styletransfer
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.os.SystemClock
+import android.provider.MediaStore
 import android.util.Log
+import androidx.core.net.toUri
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
@@ -78,7 +83,7 @@ class StyleTransferModelExecutor(
   private var styleBottleneckBlended =
     Array(1) { Array(1) { Array(1) { FloatArray(BOTTLENECK_SIZE) } } }
 
-  var contentBlendingRatio = 0.1f
+  var contentBlendingRatio = 0.7f
   init {
     if (useGPU) {
       interpreterPredict = getInterpreter(context, STYLE_PREDICT_FLOAT16_MODEL, true)
@@ -99,12 +104,12 @@ class StyleTransferModelExecutor(
     try {
       Log.i(TAG, "running models")
 
-      val contentBitmap = ImageUtils.decodeBitmap(File(contentImagePath))
-
-
+      val contentBitmap
+              //= ImageUtils.decodeBitmap(File(contentImagePath))
+      = MediaStore.Images.Media.getBitmap(context.contentResolver, Uri.parse(contentImagePath))
       stylePredictTime = SystemClock.uptimeMillis()
-      val styleBitmap =
-        ImageUtils.loadBitmapFromResources(context, "thumbnails/$styleImageName")
+      val styleBitmap =ImageUtils.loadBitmapFromResources(context, "thumbnails/$styleImageName")
+      //= MediaStore.Images.Media.getBitmap(context.contentResolver, Uri.parse(styleImageName))
       val inputStyle =
         ImageUtils.bitmapToByteBuffer(styleBitmap, STYLE_IMAGE_SIZE, STYLE_IMAGE_SIZE)
 
