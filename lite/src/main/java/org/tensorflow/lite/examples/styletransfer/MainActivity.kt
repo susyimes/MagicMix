@@ -31,6 +31,7 @@ import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.app.ActivityCompat
+import androidx.core.widget.NestedScrollView
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory
 import com.bumptech.glide.Glide
@@ -82,7 +83,7 @@ class MainActivity :
   private lateinit var rerunButton: Button
   private lateinit var captureButton: ImageButton
   private lateinit var progressBar: ProgressBar
-  private lateinit var horizontalScrollView: HorizontalScrollView
+  private lateinit var horizontalScrollView: NestedScrollView
 
   private var lastSavedFile = ""
   private var useGPU = false
@@ -158,23 +159,50 @@ class MainActivity :
 
     styleImageView.setOnClickListener {
       if (!isRunningModel) {
-        stylesFragment.show(supportFragmentManager, "StylesFragment")
+        //stylesFragment.show(supportFragmentManager, "StylesFragment")
 
-//        PictureSelector.create(this)
-//          .openGallery(PictureMimeType.ofImage())
-//          .loadImageEngine(GlideEngine.createGlideEngine()) // Please refer to the Demo GlideEngine.java
-//          .forResult(object: OnResultCallbackListener<LocalMedia> {
-//            override fun onResult(result: MutableList<LocalMedia>?) {
-//              Log.d(TAG, Uri.parse(result?.get(0)?.path.toString()).toString())
-//              selectedStyle = result?.get(0)?.path.toString()
-//              setImageView(styleImageView, selectedStyle)
-//              startRunningModel()
-//            }
-//            override fun onCancel() {
-//            }
-//          })
+        PictureSelector.create(this)
+          .openGallery(PictureMimeType.ofImage())
+          .loadImageEngine(GlideEngine.createGlideEngine()) // Please refer to the Demo GlideEngine.java
+          .forResult(object: OnResultCallbackListener<LocalMedia> {
+            override fun onResult(result: MutableList<LocalMedia>?) {
+              Log.d(TAG, Uri.parse(result?.get(0)?.path.toString()).toString())
+              selectedStyle = result?.get(0)?.path.toString()
+              setImageView(styleImageView, selectedStyle)
+              startRunningModel()
+            }
+            override fun onCancel() {
+            }
+          })
 
 
+      }
+    }
+
+    originalImageView.setOnClickListener {
+      if (!isRunningModel) {
+        //stylesFragment.show(supportFragmentManager, "StylesFragment")
+
+        PictureSelector.create(this)
+          .openGallery(PictureMimeType.ofImage())
+          .loadImageEngine(GlideEngine.createGlideEngine()) // Please refer to the Demo GlideEngine.java
+          .forResult(object: OnResultCallbackListener<LocalMedia> {
+            override fun onResult(result: MutableList<LocalMedia>?) {
+              Log.d(TAG, Uri.parse(result?.get(0)?.path.toString()).toString())
+              lastSavedFile = result?.get(0)?.path.toString()
+              setImageView(originalImageView, lastSavedFile)
+            }
+            override fun onCancel() {
+            }
+          })
+
+
+      }
+    }
+
+    resultImageView.setOnClickListener {
+      if (::modelExecutionResult.isInitialized) {
+        SaveUtils().saveBitmap(this@MainActivity,modelExecutionResult.styledImage,System.currentTimeMillis().toString())
       }
     }
 
@@ -197,6 +225,7 @@ class MainActivity :
   }
 
   private fun setImageView(imageView: ImageView, image: Bitmap) {
+
     Glide.with(baseContext)
       .load(image)
       .override(512, 512)
@@ -210,15 +239,16 @@ class MainActivity :
       .override(512, 512)
       .into(imageView)
   }
-
+  lateinit var modelExecutionResult:ModelExecutionResult
   private fun updateUIWithResults(modelExecutionResult: ModelExecutionResult) {
     progressBar.visibility = View.INVISIBLE
     resultImageView.visibility = View.VISIBLE
+    this.modelExecutionResult = modelExecutionResult
     setImageView(resultImageView, modelExecutionResult.styledImage)
     val logText: TextView = findViewById(R.id.log_view)
     logText.text = modelExecutionResult.executionLog
     enableControls(true)
-    horizontalScrollView.fullScroll(HorizontalScrollView.FOCUS_RIGHT)
+    //horizontalScrollView.fullScroll(HorizontalScrollView.FOCUS_RIGHT)
   }
 
   private fun enableControls(enable: Boolean) {

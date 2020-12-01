@@ -68,6 +68,8 @@ abstract class ImageUtils {
       return matrix
     }
 
+
+
     /**
      * sets the Exif orientation of an image.
      * this method is used to fix the exit of pictures taken by the camera

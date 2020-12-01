@@ -61,13 +61,13 @@ class StyleTransferModelExecutor(
     private const val STYLE_IMAGE_SIZE = 256
     private const val CONTENT_IMAGE_SIZE = 384
     private const val BOTTLENECK_SIZE = 100
-    private const val STYLE_PREDICT_INT_MODEL = "style_predict_hybrid_last.tflite"
-    private const val STYLE_TRANSFER_INT_MODEL = "style_transfer_hybrid_last.tflite"
+//    private const val STYLE_PREDICT_INT_MODEL = "style_predict_hybrid_last.tflite"
+//    private const val STYLE_TRANSFER_INT_MODEL = "style_transfer_hybrid_last.tflite"
 //    private const val STYLE_PREDICT_FLOAT16_MODEL = "style_predict_f16_shayak.tflite"
 //    private const val STYLE_TRANSFER_FLOAT16_MODEL = "style_transfer_f16_shayak.tflite"
     //not fit in xiaomi 8
-//    private const val STYLE_PREDICT_INT_MODEL = "style_predict_quantized_256.tflite"
-//    private const val STYLE_TRANSFER_INT_MODEL = "style_transfer_quantized_384.tflite"
+    private const val STYLE_PREDICT_INT_MODEL = "style_predict_quantized_256.tflite"
+    private const val STYLE_TRANSFER_INT_MODEL = "style_transfer_quantized_384.tflite"
     private const val STYLE_PREDICT_FLOAT16_MODEL = "style_predict_f16_256.tflite"
     private const val STYLE_TRANSFER_FLOAT16_MODEL = "style_transfer_f16_384.tflite"
   }
@@ -83,7 +83,7 @@ class StyleTransferModelExecutor(
   private var styleBottleneckBlended =
     Array(1) { Array(1) { Array(1) { FloatArray(BOTTLENECK_SIZE) } } }
 
-  var contentBlendingRatio = 0.7f
+  var contentBlendingRatio = 0.6f
   init {
     if (useGPU) {
       interpreterPredict = getInterpreter(context, STYLE_PREDICT_FLOAT16_MODEL, true)
@@ -108,8 +108,8 @@ class StyleTransferModelExecutor(
               //= ImageUtils.decodeBitmap(File(contentImagePath))
       = MediaStore.Images.Media.getBitmap(context.contentResolver, Uri.parse(contentImagePath))
       stylePredictTime = SystemClock.uptimeMillis()
-      val styleBitmap =ImageUtils.loadBitmapFromResources(context, "thumbnails/$styleImageName")
-      //= MediaStore.Images.Media.getBitmap(context.contentResolver, Uri.parse(styleImageName))
+      val styleBitmap //=ImageUtils.loadBitmapFromResources(context, "thumbnails/$styleImageName")
+      = MediaStore.Images.Media.getBitmap(context.contentResolver, Uri.parse(styleImageName))
       val inputStyle =
         ImageUtils.bitmapToByteBuffer(styleBitmap, STYLE_IMAGE_SIZE, STYLE_IMAGE_SIZE)
 
